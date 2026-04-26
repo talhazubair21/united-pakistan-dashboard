@@ -14,6 +14,7 @@ import { PartyMemberForm } from "@/pages/party-members/PartyMemberForm";
 import { EventsList } from "@/pages/events/EventsList";
 import { EventForm } from "@/pages/events/EventForm";
 import { VisitorLogs } from "@/pages/VisitorLogs";
+import { Toaster } from "@/components/ui/toaster";
 
 function Router() {
   return (
@@ -49,6 +50,7 @@ function App() {
   return (
     <WouterRouter base={base}>
       <Router />
+      <Toaster />
     </WouterRouter>
   );
 }

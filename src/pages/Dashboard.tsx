@@ -1,4 +1,4 @@
-import { useLocation } from "wouter";
+import { useMemo, useState } from "react";
 import { Users, Eye, FileText, Calendar, ArrowUpRight } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card } from "@/components/ui";
@@ -10,22 +10,70 @@ const STATS = [
   { label: "Events Count", value: "38", trend: "Next event in 12 days", icon: Calendar, positive: false },
 ];
 
-const RECENT_ACTIVITY = [
-  { id: 1, actor: "Adeel Rauf", initials: "AR", action: "published a column", target: '"The Future of Regional Politics"', time: "2 hours ago" },
-  { id: 2, actor: "Hina Malik", initials: "HM", action: "edited Issue", target: "#84", time: "4 hours ago" },
-  { id: 3, actor: "Faisal Khan", initials: "FK", action: "added a member", target: "Sana Tariq", time: "Yesterday, 14:30" },
-  { id: 4, actor: "Sana Tariq", initials: "ST", action: "updated event", target: "Annual General Assembly", time: "Yesterday, 09:15" },
-  { id: 5, actor: "Adeel Rauf", initials: "AR", action: "archived book", target: '"Historical Perspectives 1990"', time: "Oct 12, 2024" },
-];
+type RangeKey = "Day" | "Week" | "Month" | "Year";
 
-const UPCOMING_EVENTS = [
-  { id: 1, date: "14", month: "NOV", title: "Annual General Assembly", location: "Islamabad Marriott Hotel" },
-  { id: 2, date: "22", month: "NOV", title: "Press Briefing: Regional Security", location: "UT Headquarters, Media Room" },
-  { id: 3, date: "05", month: "DEC", title: "Book Launch: Decade in Review", location: "National Library Auditorium" },
-];
+const RANGE_ORDER: RangeKey[] = ["Day", "Week", "Month", "Year"];
+
+const VISITOR_SERIES: Record<RangeKey, { labels: string[]; values: number[]; description: string }> = {
+  Day: {
+    labels: ["00:00", "03:00", "06:00", "09:00", "12:00", "15:00", "18:00", "21:00"],
+    values: [920, 1040, 1360, 1880, 2300, 2140, 2680, 2410],
+    description: "Unique visitors in the last 24 hours",
+  },
+  Week: {
+    labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    values: [14200, 15640, 14880, 17320, 18110, 16520, 17780],
+    description: "Daily visitor totals for this week",
+  },
+  Month: {
+    labels: ["W1", "W2", "W3", "W4"],
+    values: [94200, 107400, 115600, 121800],
+    description: "Weekly visitor totals for this month",
+  },
+  Year: {
+    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    values: [33200, 34850, 36600, 38120, 39540, 42300, 43880, 45210, 46820, 48240, 49910, 51200],
+    description: "Monthly visitor totals this year",
+  },
+};
 
 export function Dashboard() {
-  const [, navigate] = useLocation();
+  const [selectedRange, setSelectedRange] = useState<RangeKey>("Month");
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const series = VISITOR_SERIES[selectedRange];
+
+  const chart = useMemo(() => {
+    const width = 1000;
+    const height = 220;
+    const topPadding = 12;
+    const bottomPadding = 20;
+    const min = Math.min(...series.values);
+    const max = Math.max(...series.values);
+    const spread = Math.max(max - min, max * 0.08, 1);
+    const chartMin = Math.max(0, min - spread * 0.35);
+    const chartMax = max + spread * 0.2;
+    const labelCount = series.values.length - 1 || 1;
+
+    const points = series.values.map((value, index) => {
+      const x = (index * width) / labelCount;
+      const normalized = (value - chartMin) / (chartMax - chartMin || 1);
+      const y = height - bottomPadding - normalized * (height - topPadding - bottomPadding);
+      return { x, y, value };
+    });
+
+    const linePath = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x},${point.y}`).join(" ");
+    const areaPath = `${linePath} L ${width},${height} L 0,${height} Z`;
+    const yTicks = [0, 1, 2, 3, 4].map((step) => topPadding + ((height - topPadding - bottomPadding) * step) / 4);
+    const peakIndex = series.values.indexOf(max);
+    const start = series.values[0];
+    const end = series.values[series.values.length - 1];
+    const trend = start > 0 ? ((end - start) / start) * 100 : 0;
+
+    return { points, linePath, areaPath, yTicks, peakIndex, trend };
+  }, [series]);
+
+  const activeIndex = hoveredIndex ?? chart.points.length - 1;
+  const activePoint = chart.points[activeIndex];
 
   return (
     <AppLayout title="Dashboard" breadcrumb={["Home", "Dashboard"]}>
@@ -63,16 +111,21 @@ export function Dashboard() {
           <div className="flex items-center justify-between p-6 border-b flex-wrap gap-4" style={{ borderColor: "var(--border)" }}>
             <div>
               <h2 className="text-xl font-bold" style={{ color: "var(--text-primary)", fontFamily: "'Playfair Display', serif" }}>Visitor Trends</h2>
-              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>Unique visitors across the platform</p>
+              <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{series.description}</p>
             </div>
             <div className="flex items-center rounded-md border text-xs font-medium p-1" style={{ borderColor: "var(--border)", background: "var(--bg-subtle)" }}>
-              {["Day", "Week", "Month", "Year"].map((range) => (
+              {RANGE_ORDER.map((range) => (
                 <button
                   key={range}
+                  type="button"
+                  onClick={() => {
+                    setSelectedRange(range);
+                    setHoveredIndex(null);
+                  }}
                   className="px-3 py-1.5 rounded transition-colors"
                   style={{
-                    background: range === "Month" ? "var(--primary)" : "transparent",
-                    color: range === "Month" ? "white" : "var(--text-secondary)",
+                    background: range === selectedRange ? "var(--primary)" : "transparent",
+                    color: range === selectedRange ? "white" : "var(--text-secondary)",
                   }}
                 >
                   {range}
@@ -88,90 +141,69 @@ export function Dashboard() {
                   <stop offset="100%" stopColor="#C53030" stopOpacity="0" />
                 </linearGradient>
               </defs>
-              {[0, 55, 110, 165, 220].map((y, i) => (
+              {chart.yTicks.map((y, i) => (
                 <line key={i} x1="0" y1={y} x2="1000" y2={y} stroke="#E7E5E4" strokeDasharray="4 4" strokeWidth="1" />
               ))}
-              <path
-                d="M 0,180 C 80,170 120,120 180,140 C 240,160 280,190 360,150 C 420,120 480,90 540,130 C 600,170 660,110 720,60 C 780,10 840,40 900,80 C 960,120 1000,150 1000,150"
-                fill="none" stroke="#C53030" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              />
-              <path
-                d="M 0,180 C 80,170 120,120 180,140 C 240,160 280,190 360,150 C 420,120 480,90 540,130 C 600,170 660,110 720,60 C 780,10 840,40 900,80 C 960,120 1000,150 1000,150 L 1000,220 L 0,220 Z"
-                fill="url(#area-gradient)"
-              />
-              <circle cx="720" cy="60" r="5" fill="white" stroke="#C53030" strokeWidth="2.5" />
-              <g transform="translate(720, 30)">
-                <rect x="-65" y="-26" width="130" height="24" rx="4" fill="#1A1A1A" />
-                <text x="0" y="-9" textAnchor="middle" fill="white" fontSize="11" fontWeight="500" fontFamily="Inter, sans-serif">
-                  Sep · 38,420 visitors
+              <path d={chart.areaPath} fill="url(#area-gradient)" />
+              <path d={chart.linePath} fill="none" stroke="#C53030" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+
+              {chart.points.map((point, index) => (
+                <g key={`${series.labels[index]}-${index}`}>
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r="10"
+                    fill="transparent"
+                    onMouseEnter={() => setHoveredIndex(index)}
+                    onFocus={() => setHoveredIndex(index)}
+                  />
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={index === activeIndex ? 5 : index === chart.peakIndex ? 4 : 3}
+                    fill="white"
+                    stroke="#C53030"
+                    strokeWidth={index === activeIndex ? 2.5 : 2}
+                  />
+                </g>
+              ))}
+
+              {activePoint && (
+                <g transform={`translate(${Math.max(120, Math.min(activePoint.x, 880))}, ${Math.max(30, activePoint.y - 18)})`}>
+                  <rect x="-90" y="-26" width="180" height="24" rx="4" fill="#1A1A1A" />
+                  <text x="0" y="-9" textAnchor="middle" fill="white" fontSize="11" fontWeight="500" fontFamily="Inter, sans-serif">
+                    {series.labels[activeIndex]} · {series.values[activeIndex].toLocaleString()} visitors
+                  </text>
+                </g>
+              )}
+
+              {series.labels.map((label, i) => (
+                <text
+                  key={label}
+                  x={(i * 1000) / (series.labels.length - 1 || 1)}
+                  y="245"
+                  textAnchor="middle"
+                  fill="#8A8A8A"
+                  fontSize="11"
+                  fontFamily="Inter, sans-serif"
+                >
+                  {label}
                 </text>
-              </g>
-              {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
-                <text key={m} x={(i * 1000) / 11} y="245" textAnchor="middle" fill="#8A8A8A" fontSize="11" fontFamily="Inter, sans-serif">{m}</text>
               ))}
             </svg>
           </div>
+          <div className="px-6 pb-6 -mt-2 flex items-center justify-between text-xs" style={{ color: "var(--text-muted)" }}>
+            <span>
+              {selectedRange} change:{" "}
+              <span style={{ color: chart.trend >= 0 ? "#1F7A3F" : "#B42318" }}>
+                {chart.trend >= 0 ? "+" : ""}
+                {chart.trend.toFixed(1)}%
+              </span>
+            </span>
+            <span>Peak: {Math.max(...series.values).toLocaleString()} visitors</span>
+          </div>
         </Card>
 
-        {/* Bottom Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Activity */}
-          <Card padding={false} className="lg:col-span-2">
-            <div className="p-6 border-b" style={{ borderColor: "var(--border)" }}>
-              <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)", fontFamily: "'Playfair Display', serif" }}>Recent Activity</h2>
-            </div>
-            <div className="px-6 py-2">
-              {RECENT_ACTIVITY.map((item, i) => (
-                <div
-                  key={item.id}
-                  className="py-4 flex items-center justify-between"
-                  style={{ borderBottom: i < RECENT_ACTIVITY.length - 1 ? "1px solid var(--border)" : "none" }}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-medium shrink-0" style={{ background: "var(--primary-soft)", color: "var(--primary)" }}>
-                      {item.initials}
-                    </div>
-                    <div className="text-sm">
-                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>{item.actor}</span>{" "}
-                      <span style={{ color: "var(--text-secondary)" }}>{item.action}</span>{" "}
-                      <span className="font-medium" style={{ color: "var(--text-primary)" }}>{item.target}</span>
-                    </div>
-                  </div>
-                  <div className="text-xs shrink-0 ml-4" style={{ color: "var(--text-muted)" }}>{item.time}</div>
-                </div>
-              ))}
-            </div>
-            <div className="p-4 border-t rounded-b-lg text-center" style={{ borderColor: "var(--border)", background: "var(--bg-subtle)" }}>
-              <button className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>View all activity</button>
-            </div>
-          </Card>
-
-          {/* Upcoming Events */}
-          <Card padding={false}>
-            <div className="p-6 border-b" style={{ borderColor: "var(--border)" }}>
-              <h2 className="text-lg font-bold" style={{ color: "var(--text-primary)", fontFamily: "'Playfair Display', serif" }}>Upcoming Events</h2>
-            </div>
-            <div className="p-6 flex flex-col gap-6">
-              {UPCOMING_EVENTS.map((event) => (
-                <div key={event.id} className="flex items-start gap-4">
-                  <div className="flex flex-col items-center shrink-0 w-12 pt-1">
-                    <div className="text-2xl font-bold leading-none" style={{ color: "var(--primary)", fontFamily: "'Playfair Display', serif" }}>{event.date}</div>
-                    <div className="text-[10px] uppercase tracking-widest font-medium mt-1" style={{ color: "var(--text-muted)" }}>{event.month}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium leading-snug mb-1" style={{ color: "var(--text-primary)" }}>{event.title}</div>
-                    <div className="text-xs" style={{ color: "var(--text-muted)" }}>{event.location}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="p-4 border-t rounded-b-lg text-center" style={{ borderColor: "var(--border)", background: "var(--bg-subtle)" }}>
-              <button className="text-sm font-medium" style={{ color: "var(--text-secondary)" }} onClick={() => navigate("/events")}>
-                Manage events
-              </button>
-            </div>
-          </Card>
-        </div>
       </div>
     </AppLayout>
   );

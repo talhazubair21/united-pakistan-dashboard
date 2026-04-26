@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Users, BookOpen, Columns3, Newspaper,
-  UserSquare2, CalendarDays, Activity, X, Menu,
+  UserSquare2, CalendarDays, Activity, X, Menu, LogOut,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -22,11 +22,11 @@ function Logo() {
         className="h-9 w-9 rounded-md flex items-center justify-center text-white font-bold text-base shrink-0"
         style={{ background: "var(--primary)", fontFamily: "'Playfair Display', serif" }}
       >
-        UT
+        UP
       </div>
       <div className="leading-tight">
         <div className="font-bold text-base tracking-tight" style={{ color: "var(--text-primary)", fontFamily: "'Playfair Display', serif" }}>
-          United Times
+          United Pakistan
         </div>
         <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: "var(--text-muted)" }}>
           Admin Console
@@ -37,11 +37,16 @@ function Logo() {
 }
 
 export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => void }) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
 
   const isActive = (path: string) => {
     if (path === "/dashboard") return location === "/dashboard" || location === "/";
     return location.startsWith(path);
+  };
+
+  const handleLogout = () => {
+    onClose?.();
+    navigate("/login");
   };
 
   const navContent = (
@@ -77,8 +82,34 @@ export function Sidebar({ open, onClose }: { open?: boolean; onClose?: () => voi
         })}
       </nav>
       <div className="px-5 py-4 border-t" style={{ borderColor: "var(--border)" }}>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="w-full mb-3 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer border"
+          style={{
+            color: "var(--primary)",
+            background: "var(--primary-soft)",
+            borderColor: "var(--border)",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+          }}
+          onMouseEnter={(e) => {
+            const target = e.currentTarget as HTMLElement;
+            target.style.background = "var(--bg-subtle)";
+            target.style.borderColor = "var(--primary)";
+            target.style.transform = "translateY(-1px)";
+          }}
+          onMouseLeave={(e) => {
+            const target = e.currentTarget as HTMLElement;
+            target.style.background = "var(--primary-soft)";
+            target.style.borderColor = "var(--border)";
+            target.style.transform = "translateY(0)";
+          }}
+        >
+          <LogOut className="h-4 w-4 shrink-0" style={{ color: "var(--primary)" }} />
+          Logout
+        </button>
         <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-          © {new Date().getFullYear()} United Times Media Group
+          © {new Date().getFullYear()} United Pakistan
         </div>
       </div>
     </>
