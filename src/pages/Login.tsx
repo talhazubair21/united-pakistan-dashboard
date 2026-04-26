@@ -1,41 +1,51 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Eye, EyeOff } from 'lucide-react';
 import { loginSchema, type LoginValues } from '@/lib/schemas';
+import { useCurrentSessionQuery, useLoginMutation, getRoleLabel } from '@/api/auth.api';
 import { Card, PrimaryButton, TextInput } from '@/components/ui';
 import { toast } from '@/hooks/use-toast';
 
 export function Login() {
-  const LOGIN_EMAIL = 'admin@gmail.com';
-  const LOGIN_PASSWORD = '123456';
   const [, navigate] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
+  const loginMutation = useLoginMutation();
+  const { data: session } = useCurrentSessionQuery();
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<LoginValues>({
     resolver: yupResolver(loginSchema),
   });
 
-  const onSubmit = (data: LoginValues) => {
-    const isValidEmail = data.email.trim().toLowerCase() === LOGIN_EMAIL;
-    const isValidPassword = data.password === LOGIN_PASSWORD;
+  useEffect(() => {
+    if (session) navigate('/dashboard');
+  }, [session, navigate]);
 
-    if (!isValidEmail || !isValidPassword) {
+  const onSubmit = async (data: LoginValues) => {
+    try {
+      const profile = await loginMutation.mutateAsync({
+        email: data.email,
+        password: data.password,
+      });
+      toast({
+        title: 'Login successful',
+        description: `Welcome back${profile.fullName ? `, ${profile.fullName}` : ''} (${getRoleLabel(profile.role)}).`,
+      });
+      navigate('/dashboard');
+    } catch (error) {
+      const description = error instanceof Error ? error.message : 'Please check your email and password.';
       toast({
         variant: 'destructive',
         title: 'Login failed',
-        description: 'Use admin@gmail.com and 123456 to sign in.',
+        description,
         className: 'border-[var(--primary)] bg-[var(--primary)] text-white',
       });
-      return;
     }
-
-    navigate('/dashboard');
   };
 
   return (
@@ -124,9 +134,9 @@ export function Login() {
             <PrimaryButton
               type="submit"
               className="w-full h-11 text-[15px] mt-1"
-              disabled={isSubmitting}
+              disabled={loginMutation.isPending}
             >
-              {isSubmitting ? 'Signing in…' : 'Sign in'}
+              {loginMutation.isPending ? 'Signing in…' : 'Sign in'}
             </PrimaryButton>
           </form>
 

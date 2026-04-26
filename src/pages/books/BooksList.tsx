@@ -3,15 +3,35 @@ import { useLocation } from "wouter";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, PrimaryButton, StatusBadge, Pagination } from "@/components/ui";
-import { BOOKS } from "@/data";
+import { useBooksQuery, useDeleteBookMutation } from "@/api/book.api";
+import { toast } from "@/hooks/use-toast";
 
 const PER_PAGE = 6;
 
 export function BooksList() {
   const [, navigate] = useLocation();
   const [page, setPage] = useState(1);
-  const total = Math.ceil(BOOKS.length / PER_PAGE);
-  const slice = BOOKS.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const booksQuery = useBooksQuery();
+  const deleteBookMutation = useDeleteBookMutation();
+  const books = booksQuery.data ?? [];
+  const total = Math.max(1, Math.ceil(books.length / PER_PAGE));
+  const slice = books.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const handleDelete = async (id: string) => {
+    const shouldDelete = window.confirm("Delete this book?");
+    if (!shouldDelete) return;
+
+    try {
+      await deleteBookMutation.mutateAsync(id);
+      toast({ title: "Book deleted", description: "The book was removed successfully." });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Delete failed",
+        description: error instanceof Error ? error.message : "Could not delete this book.",
+      });
+    }
+  };
 
   return (
     <AppLayout title="Books" breadcrumb={["Home", "Books"]}>
@@ -25,6 +45,16 @@ export function BooksList() {
       </div>
 
       <Card padding={false}>
+        {booksQuery.isLoading ? (
+          <div className="px-6 py-8 text-sm" style={{ color: "var(--text-secondary)" }}>
+            Loading books...
+          </div>
+        ) : null}
+        {booksQuery.isError ? (
+          <div className="px-6 py-8 text-sm text-red-700">
+            {(booksQuery.error as Error).message}
+          </div>
+        ) : null}
         <div className="w-full overflow-x-auto">
           <table className="w-full text-left text-sm min-w-[640px]">
             <thead>
@@ -71,6 +101,7 @@ export function BooksList() {
                       <button
                         className="p-1.5 rounded transition-colors"
                         style={{ color: "var(--text-muted)" }}
+                        onClick={() => handleDelete(book.id)}
                         onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#FEF2F2"; (e.currentTarget as HTMLElement).style.color = "#B91C1C"; }}
                         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
                       >

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -5,31 +6,92 @@ import { BookOpen, Save } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, PrimaryButton, SecondaryButton, TextInput, TextArea, SelectInput, BiLabel, FieldLabel } from "@/components/ui";
 import { bookSchema, type BookValues } from "@/lib/schemas";
-import { BOOKS } from "@/data";
+import {
+  useBookByIdQuery,
+  useCreateBookMutation,
+  useUpdateBookMutation,
+} from "@/api/book.api";
+import { toast } from "@/hooks/use-toast";
 
 interface Props { mode: "add" | "edit"; }
 
 export function BookForm({ mode }: Props) {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
-  const existing = mode === "edit" ? BOOKS.find(b => b.id === params.id) : undefined;
+  const bookId = params.id ?? "";
+  const bookQuery = useBookByIdQuery(bookId, mode === "edit" && Boolean(bookId));
+  const createBookMutation = useCreateBookMutation();
+  const updateBookMutation = useUpdateBookMutation();
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<BookValues>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<BookValues>({
     resolver: yupResolver(bookSchema),
-    defaultValues: existing ? {
-      titleEn: existing.titleEn, titleUr: existing.titleUr,
-      authorEn: existing.authorEn, authorUr: existing.authorUr,
-      descriptionEn: existing.descriptionEn, descriptionUr: existing.descriptionUr,
-      year: existing.year, pages: existing.pages, category: existing.category, status: existing.status,
-    } : { category: "History", status: "Draft" },
+    defaultValues: { category: "History", status: "Draft" },
   });
 
-  const onSubmit = (data: BookValues) => {
-    console.log(`${mode === "add" ? "Add" : "Edit"} Book form data:`, data);
-    navigate("/books");
+  useEffect(() => {
+    if (mode !== "edit" || !bookQuery.data) return;
+    reset({
+      titleEn: bookQuery.data.titleEn,
+      titleUr: bookQuery.data.titleUr,
+      authorEn: bookQuery.data.authorEn,
+      authorUr: bookQuery.data.authorUr,
+      descriptionEn: bookQuery.data.descriptionEn,
+      descriptionUr: bookQuery.data.descriptionUr,
+      year: bookQuery.data.year,
+      pages: bookQuery.data.pages,
+      category: bookQuery.data.category,
+      status: bookQuery.data.status,
+    });
+  }, [mode, bookQuery.data, reset]);
+
+  const onSubmit = async (data: BookValues) => {
+    try {
+      if (mode === "add") {
+        await createBookMutation.mutateAsync(data);
+      } else if (bookId) {
+        await updateBookMutation.mutateAsync({ id: bookId, values: data });
+      }
+
+      toast({
+        title: mode === "add" ? "Book added" : "Book updated",
+        description: "Changes saved successfully.",
+      });
+      navigate("/books");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: mode === "add" ? "Add failed" : "Update failed",
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+    }
   };
 
   const title = mode === "add" ? "Add Book" : "Edit Book";
+  const isSubmitting = createBookMutation.isPending || updateBookMutation.isPending;
+
+  if (mode === "edit" && bookQuery.isLoading) {
+    return (
+      <AppLayout title={title} breadcrumb={["Home", "Books", title]}>
+        <Card>
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Loading book...
+          </p>
+        </Card>
+      </AppLayout>
+    );
+  }
+
+  if (mode === "edit" && bookQuery.isError) {
+    return (
+      <AppLayout title={title} breadcrumb={["Home", "Books", title]}>
+        <Card>
+          <p className="text-sm text-red-700">
+            {(bookQuery.error as Error).message}
+          </p>
+        </Card>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title={title} breadcrumb={["Home", "Books", title]}>
