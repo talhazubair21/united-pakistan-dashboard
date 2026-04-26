@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #C53030;
+  --primary-hover: #9B2424;
+  --primary-soft: #FEF2F2;
+  --primary-ring: rgba(197, 48, 48, 0.18);
+
+  --bg-app: #F5F5F4;
+  --bg-card: #FFFFFF;
+  --bg-subtle: #FAFAF9;
+  --bg-row-hover: #FAF7F7;
+
+  --text-primary: #1A1A1A;
+  --text-secondary: #4B4B4B;
+  --text-muted: #8A8A8A;
+
+  --border: #E7E5E4;
+  --border-strong: #D6D3D1;
+
+  --shadow-card: 0 1px 3px rgba(15, 15, 15, 0.06), 0 1px 2px rgba(15, 15, 15, 0.04);
+  --shadow-sm: 0 1px 2px rgba(15, 15, 15, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+}
+
+.font-serif {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  letter-spacing: -0.01em;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
