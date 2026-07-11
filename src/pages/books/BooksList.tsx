@@ -3,34 +3,21 @@ import { useLocation } from "wouter";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, PrimaryButton, StatusBadge, Pagination } from "@/components/ui";
-import { useBooksQuery, useDeleteBookMutation } from "@/api/book.api";
-import { toast } from "@/hooks/use-toast";
+import { BOOKS } from "@/data";
 
 const PER_PAGE = 6;
 
 export function BooksList() {
   const [, navigate] = useLocation();
   const [page, setPage] = useState(1);
-  const booksQuery = useBooksQuery();
-  const deleteBookMutation = useDeleteBookMutation();
-  const books = booksQuery.data ?? [];
+  const [books, setBooks] = useState(BOOKS);
   const total = Math.max(1, Math.ceil(books.length / PER_PAGE));
   const slice = books.slice((page - 1) * PER_PAGE, page * PER_PAGE);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     const shouldDelete = window.confirm("Delete this book?");
     if (!shouldDelete) return;
-
-    try {
-      await deleteBookMutation.mutateAsync(id);
-      toast({ title: "Book deleted", description: "The book was removed successfully." });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Delete failed",
-        description: error instanceof Error ? error.message : "Could not delete this book.",
-      });
-    }
+    setBooks((prev) => prev.filter((book) => book.id !== id));
   };
 
   return (
@@ -45,16 +32,6 @@ export function BooksList() {
       </div>
 
       <Card padding={false}>
-        {booksQuery.isLoading ? (
-          <div className="px-6 py-8 text-sm" style={{ color: "var(--text-secondary)" }}>
-            Loading books...
-          </div>
-        ) : null}
-        {booksQuery.isError ? (
-          <div className="px-6 py-8 text-sm text-red-700">
-            {(booksQuery.error as Error).message}
-          </div>
-        ) : null}
         <div className="w-full overflow-x-auto">
           <table className="w-full text-left text-sm min-w-[640px]">
             <thead>

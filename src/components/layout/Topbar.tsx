@@ -1,7 +1,6 @@
 import { ChevronRight, LogOut } from "lucide-react";
 import { useLocation } from "wouter";
 import { MobileMenuButton } from "./Sidebar";
-import { getRoleLabel, useCurrentProfileQuery, useLogoutMutation } from "@/api/auth.api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +9,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "@/hooks/use-toast";
+
+const STATIC_ADMIN = {
+  fullName: "Tariq Ali",
+  role: "Super Admin",
+  initials: "TA",
+};
 
 interface TopbarProps {
   title: string;
@@ -20,28 +24,10 @@ interface TopbarProps {
 
 export function Topbar({ title, breadcrumb, onMenuClick }: TopbarProps) {
   const [, navigate] = useLocation();
-  const { data: profile } = useCurrentProfileQuery();
-  const logoutMutation = useLogoutMutation();
-  const initials = profile?.fullName
-    ? profile.fullName.split(" ").map((chunk) => chunk[0]).join("").toUpperCase().slice(0, 2)
-    : "UP";
-  
-  const handleLogout = async () => {
-    try {
-      await logoutMutation.mutateAsync();
-      navigate("/login");
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Logout failed",
-        description: error instanceof Error ? error.message : "Could not logout right now.",
-      });
-    }
-  };
 
   return (
     <header
-      className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b bg-white px-6 py-4"
+      className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b bg-white px-6 py-4"
       style={{ borderColor: "var(--border)" }}
     >
       <div className="flex items-center gap-3 min-w-0">
@@ -78,35 +64,41 @@ export function Topbar({ title, breadcrumb, onMenuClick }: TopbarProps) {
             >
               <div className="text-right leading-tight hidden sm:block">
                 <div className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                  {profile?.fullName ?? "Authenticated User"}
+                  {STATIC_ADMIN.fullName}
                 </div>
                 <div className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                  {profile ? getRoleLabel(profile.role) : "No role"}
+                  {STATIC_ADMIN.role}
                 </div>
               </div>
               <div
                 className="h-9 w-9 rounded-full flex items-center justify-center font-medium text-sm"
                 style={{ background: "var(--primary-soft)", color: "var(--primary)" }}
               >
-                {initials}
+                {STATIC_ADMIN.initials}
               </div>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel>
-              {profile?.fullName ?? "Authenticated User"}
-            </DropdownMenuLabel>
+          <DropdownMenuContent
+            align="end"
+            sideOffset={8}
+            className="w-52 border bg-white shadow-md"
+            style={{
+              background: "var(--bg-card)",
+              borderColor: "var(--border)",
+              boxShadow: "var(--shadow-card)",
+            }}
+          >
+            <DropdownMenuLabel>{STATIC_ADMIN.fullName}</DropdownMenuLabel>
             <DropdownMenuLabel className="pt-0 text-xs font-normal" style={{ color: "var(--text-muted)" }}>
-              {profile ? getRoleLabel(profile.role) : "No role"}
+              {STATIC_ADMIN.role}
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            <DropdownMenuSeparator style={{ background: "var(--border)" }} />
             <DropdownMenuItem
-              onClick={handleLogout}
-              disabled={logoutMutation.isPending}
-              className="text-red-600 focus:text-red-700"
+              onClick={() => navigate("/login")}
+              className="text-red-600 focus:text-red-700 focus:bg-[var(--bg-row-hover)]"
             >
               <LogOut className="h-4 w-4" />
-              {logoutMutation.isPending ? "Logging out..." : "Logout"}
+              Logout
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
